@@ -70,9 +70,10 @@ class App(win32serviceutil.ServiceFramework):
     def save_log(self):
         registered_apps = self.db.get_registered_apps()
         working_app_titles = self.system.get_working_app_titles()
+        now = datetime.now()
         for key, value in registered_apps.items():
             if value in working_app_titles:
-                self.db.save_process_log(key, datetime.now())
+                self.db.save_process_log(key, now)
         for key, value in working_app_titles.items():
             if value not in registered_apps and key >= self.gpu_mem_th:
                 self.db.save_process(value)
