@@ -37,5 +37,16 @@ CREATE TABLE IF NOT EXISTS `process_log`(
         return self.cursor.fetchone()
 
     def get_log_count_by_time(self, time):
-        self.cursor.execute('SELECT COUNT(*) FROM process_log WHERE `timestamp` >= ?', (time,))
+        self.cursor.execute('SELECT COUNT(DISTINCT timestamp) FROM process_log WHERE `timestamp` >= ?', (time,))
         return self.cursor.fetchone()
+
+    def get_registered_apps(self):
+        self.cursor.execute('SELECT id, title FROM process')
+        titles = {}
+        for row in self.cursor.fetchall():
+            titles[row[0]] = row[1]
+        return titles
+
+    def disconnect(self):
+        self.conn.commit()
+        self.conn.close()

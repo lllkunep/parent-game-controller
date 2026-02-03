@@ -1,21 +1,30 @@
 from pynvml import *
 
 class System:
-    def __init__(self, gpu_mem_threshold):
-        nvmlInit()
-        self.handle = nvmlDeviceGetHandleByIndex(0)
-        self.gpu_mem_threshold = gpu_mem_threshold
+    def __init__(self):
+        # nvmlInit()
+        # self.handle = nvmlDeviceGetHandleByIndex(0)
         pass
 
     def get_gpu_processes(self):
-        procs = nvmlDeviceGetComputeRunningProcesses(self.handle)
+        # procs = nvmlDeviceGetComputeRunningProcesses(self.handle)
+        procs = {}
         result = []
 
         for p in procs:
-            if p.usedGpuMemory >= self.gpu_mem_threshold:
-                result.append({
-                    "pid": p.pid,
-                    "gpu_mem": p.usedGpuMemory
-                })
-
+            result.append({
+                "pid": p.pid,
+                "gpu_mem": p.usedGpuMemory
+            })
         return result
+
+    def get_working_app_titles(self):
+        titles = {}
+        return titles
+
+    def get_working_app_pids(self):
+        pids = []
+        return pids
+
+    def kill_processes(self):
+        pass
