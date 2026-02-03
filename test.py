@@ -1,27 +1,13 @@
-import monitor
-import sqlite3
-import db
-import datetime
+import psutil
+import win32serviceutil
+import win32service
+import win32event
 
 def main():
-	_db = db.Database()
-	_db.init_db()
-
-	# _db.save_process('dfsfsdfsdf')
-	_db.save_process_log(1, datetime.datetime.now())
-
-	id1 = _db.get_process_id_by_title('sadasd')
-	print(id1)
-	id2 = _db.get_process_id_by_title('dfsfsdfsdf')
-	print(id2)
-
-	count = _db.get_log_count_by_time(datetime.datetime.strptime('2026-02-02 18:01:18', '%Y-%m-%d %H:%M:%S'))
-	print(count)
-
-	m = monitor.Monitor()
-	print(m.gpu_mem_th)
-	print(m.usage_limit)
-	print(m.time_limits)
+	config_path = 'C:\\Windows\\System32\\drivers\\etc\\gpucontrol.ini'
+	db_path = 'C:\\Windows\\System32\\drivers\\etc\\gpucontrol.db'
+	print(config_path)
+	print(db_path)
 	pass
 
 if __name__ == '__main__':

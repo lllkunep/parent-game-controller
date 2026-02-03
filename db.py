@@ -1,9 +1,10 @@
 import sqlite3
 
 class Database:
-    def __init__(self):
-        self.conn = sqlite3.connect('main.db')
+    def __init__(self, db_path):
+        self.conn = sqlite3.connect(db_path)
         self.cursor = self.conn.cursor()
+        self.init_db()
 
     def init_db(self):
         self.cursor.execute('''
@@ -34,11 +35,19 @@ CREATE TABLE IF NOT EXISTS `process_log`(
 
     def get_process_id_by_title(self, title):
         self.cursor.execute('SELECT id FROM process where title = ?', (title,))
-        return self.cursor.fetchone()
+        data = self.cursor.fetchone()
+        if data is not None:
+            return data[0]
+        else:
+            return None
 
     def get_log_count_by_time(self, time):
         self.cursor.execute('SELECT COUNT(DISTINCT timestamp) FROM process_log WHERE `timestamp` >= ?', (time,))
-        return self.cursor.fetchone()
+        data = self.cursor.fetchone()
+        if data is not None:
+            return data[0]
+        else:
+            return None
 
     def get_registered_apps(self):
         self.cursor.execute('SELECT id, title FROM process')
@@ -46,6 +55,10 @@ CREATE TABLE IF NOT EXISTS `process_log`(
         for row in self.cursor.fetchall():
             titles[row[0]] = row[1]
         return titles
+
+    def get_active_registered_apps(self):
+        self.cursor.execute('SELECT title FROM process WHERE is_exception = 0')
+        return self.cursor.fetchall()
 
     def disconnect(self):
         self.conn.commit()

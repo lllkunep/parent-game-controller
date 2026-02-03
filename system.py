@@ -1,4 +1,5 @@
 from pynvml import *
+import psutil
 
 class System:
     def __init__(self):
@@ -26,5 +27,9 @@ class System:
         pids = []
         return pids
 
-    def kill_processes(self):
-        pass
+    def kill_processes(self, titles):
+        pids = self.get_working_app_pids()
+        for pid in pids:
+            p = psutil.Process(pid)
+            if p is not None and p.name() in titles:
+                psutil.Process(pid).kill()

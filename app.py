@@ -1,17 +1,27 @@
 import configparser
 from datetime import datetime
 import re
+import time
+
+import win32serviceutil
+import win32service
+import win32event
 
 from db import Database
 from system import System
 
-import time
 
+class App(win32serviceutil.ServiceFramework):
+    _svc_name_ = "GpuControl"
+    _svc_display_name_ = "GPU Usage Control"
 
-class App:
-    def __init__(self):
+    config_path = 'C:\\Windows\\System32\\drivers\\etc\\gpucontrol.ini'
+    db_path = 'C:\\Windows\\gpucontrol.db'
+
+    def __init__(self, args):
+        self.stop = False
         self.config = configparser.ConfigParser()
-        self.config.read('conf.ini')
+        self.config.read(self.config_path)
 
         self.gpu_mem_th = self._get_mem_mb()
         self.usage_limit = self._get_limit_mins()
@@ -19,8 +29,29 @@ class App:
         self.log_interval = self._get_log_interval()
         self.starting_point = self._get_starting_point()
 
-        self.db = Database()
+        self.db = Database(self.db_path)
         self.system = System()
+
+        win32serviceutil.ServiceFramework.__init__(self, args)
+        self.stop_event = win32event.CreateEvent(None, 0, 0, None)
+
+    def SvcStop(self):
+        self.ReportServiceStatus(win32service.SERVICE_STOP_PENDING)
+        win32event.SetEvent(self.stop_event)
+        self.stop = True
+
+    def SvcDoRun(self):
+        while True:
+            if self.stop:
+                exit(0)
+            start_time = time.time()
+            if self.checking_limits():
+                titles = self.db.get_active_registered_apps()
+                self.system.kill_processes(titles)
+            self.save_log()
+            end_time = time.time()
+            execution_time = end_time - start_time
+            time.sleep(self.log_interval - execution_time)
 
     def checking_limits(self):
         return self.check_time_limits() or self.check_allows_time_intervals()
@@ -35,16 +66,6 @@ class App:
             if start_end[0] <= datetime.now().time() <= start_end[1]:
                 return True
         return False
-
-    def main_thread(self):
-        while True:
-            start_time = time.time()
-            if self.checking_limits():
-                self.system.kill_processes()
-            self.save_log()
-            end_time = time.time()
-            execution_time = end_time - start_time
-            time.sleep(self.log_interval - execution_time)
 
     def save_log(self):
         registered_apps = self.db.get_registered_apps()
@@ -94,7 +115,7 @@ class App:
                 start_end = delta.split('-')
                 start = datetime.strptime(start_end[0], "%H:%M")
                 end = datetime.strptime(start_end[1], "%H:%M")
-                time_deltas.append([start, end])
+                time_deltas.append([start.time(), end.time()])
 
         except:
             raise ValueError('invalid values for "time_limits"')
@@ -113,3 +134,9 @@ class App:
         except:
             raise ValueError('invalid values for "starting_point"')
         return starting_point
+
+    def __str__(self):
+        return str(self.__dict__)
+
+if __name__ == '__main__':
+    win32serviceutil.HandleCommandLine(App)
