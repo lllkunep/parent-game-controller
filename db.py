@@ -23,6 +23,13 @@ CREATE TABLE IF NOT EXISTS `process_log`(
 )
                             ''')
 
+        self.cursor.execute('''
+CREATE TABLE IF NOT EXISTS `keywords`(
+`id` INTEGER PRIMARY KEY,
+`keyword` text NOT NULL
+)
+                            ''')
+
         self.conn.commit()
 
     def save_process(self, title, is_exception = False):
@@ -58,8 +65,28 @@ CREATE TABLE IF NOT EXISTS `process_log`(
 
     def get_active_registered_apps(self):
         self.cursor.execute('SELECT title FROM process WHERE is_exception = 0')
-        return self.cursor.fetchall()
+        titles = []
+        for row in self.cursor.fetchall():
+            titles.append(row[0])
+        return titles
 
     def disconnect(self):
         self.conn.commit()
         self.conn.close()
+
+    def get_keywords(self):
+        self.cursor.execute('SELECT keyword FROM keywords')
+        keywords = []
+        for row in self.cursor.fetchall():
+            keywords.append(row[0])
+        return keywords
+
+    def add_keyword(self, keyword):
+        self.cursor.execute('INSERT INTO keywords (keyword) VALUES (?)', (keyword,))
+        self.conn.commit()
+
+    def add_default_keywords(self, default_keywords):
+        keywords = self.get_keywords()
+        for keyword in default_keywords:
+            if keyword not in keywords:
+                self.add_keyword(keyword)

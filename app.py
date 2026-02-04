@@ -28,8 +28,10 @@ class App(win32serviceutil.ServiceFramework):
         self.time_limits = self._get_time_limits()
         self.log_interval = self._get_log_interval()
         self.starting_point = self._get_starting_point()
+        self.default_keywords = self._get_default_keywords()
 
         self.db = Database(self.db_path)
+        self.db.add_default_keywords(self.default_keywords)
         self.system = System()
 
         win32serviceutil.ServiceFramework.__init__(self, args)
@@ -58,7 +60,7 @@ class App(win32serviceutil.ServiceFramework):
 
     def check_time_limits(self):
         log_count = self.db.get_log_count_by_time(self.starting_point)
-        time_worked = (log_count * self.log_interval) / 60
+        time_worked = int((log_count * self.log_interval) / 60)
         return time_worked >= self.usage_limit
 
     def check_allows_time_intervals(self):
@@ -72,11 +74,14 @@ class App(win32serviceutil.ServiceFramework):
         working_app_titles = self.system.get_working_app_titles()
         now = datetime.now()
         for key, value in registered_apps.items():
-            if value in working_app_titles:
+            if value in working_app_titles.values():
                 self.db.save_process_log(key, now)
         for key, value in working_app_titles.items():
-            if value not in registered_apps and key >= self.gpu_mem_th:
-                self.db.save_process(value)
+            path = self.system.get_process_path(key)
+            keywords = self.db.get_keywords()
+            for keyword in keywords:
+                if value not in registered_apps.values() and keyword in path:
+                    self.db.save_process(value)
 
     def run(self):
         self.main_thread()
@@ -135,6 +140,13 @@ class App(win32serviceutil.ServiceFramework):
         except:
             raise ValueError('invalid values for "starting_point"')
         return starting_point
+
+    def _get_default_keywords(self):
+        try:
+            default_keywords = self.config["Settings"]["default_keywords"].split(',')
+        except:
+            raise ValueError('invalid values for "default_keywords"')
+        return default_keywords
 
     def __str__(self):
         return str(self.__dict__)
