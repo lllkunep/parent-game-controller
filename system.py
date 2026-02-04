@@ -1,22 +1,8 @@
-from pynvml import *
 import psutil
 
 class System:
     def __init__(self):
-        nvmlInit()
-        self.handle = nvmlDeviceGetHandleByIndex(0)
         pass
-
-    def get_gpu_processes(self):
-        procs = nvmlDeviceGetComputeRunningProcesses(self.handle)
-        result = []
-
-        for p in procs:
-            result.append({
-                "pid": p.pid,
-                "gpu_mem": p.usedGpuMemory
-            })
-        return result
 
     def get_working_app_titles(self):
         pids = self.get_working_app_pids()
@@ -28,11 +14,16 @@ class System:
         return titles
 
     def get_working_app_pids(self):
-        processes = self.get_gpu_processes()
-        pids = []
-        for p in processes:
-            pids.append(p['pid'])
-        return pids
+        allowed_pids = []
+        for proc in psutil.pids():
+            try:
+                p = psutil.Process(proc)
+                if p is not None:
+                    p.exe()
+                    allowed_pids.append(proc)
+            except psutil.AccessDenied:
+                continue
+        return allowed_pids
 
     def kill_processes(self, titles):
         pids = self.get_working_app_pids()

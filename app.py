@@ -2,6 +2,7 @@ import configparser
 from datetime import datetime
 import re
 import time
+import sys
 
 import win32serviceutil
 import win32service
@@ -18,7 +19,13 @@ class App(win32serviceutil.ServiceFramework):
     config_path = 'C:\\Windows\\System32\\drivers\\etc\\gpucontrol.ini'
     db_path = 'C:\\Windows\\gpucontrol.db'
 
-    def __init__(self, args):
+    no_service_config_path = 'gpucontrol.ini'
+    no_service_db_path = 'gpucontrol.db'
+
+    def __init__(self, args, no_service = False):
+        if no_service:
+            self.config_path = self.no_service_config_path
+            self.db_path = self.no_service_db_path
         self.stop = False
         self.config = configparser.ConfigParser()
         self.config.read(self.config_path)
@@ -34,8 +41,12 @@ class App(win32serviceutil.ServiceFramework):
         self.db.add_default_keywords(self.default_keywords)
         self.system = System()
 
-        win32serviceutil.ServiceFramework.__init__(self, args)
-        self.stop_event = win32event.CreateEvent(None, 0, 0, None)
+        if not no_service:
+            win32serviceutil.ServiceFramework.__init__(self, args)
+            self.stop_event = win32event.CreateEvent(None, 0, 0, None)
+
+    def run(self):
+        self.SvcDoRun()
 
     def SvcStop(self):
         self.ReportServiceStatus(win32service.SERVICE_STOP_PENDING)
@@ -82,9 +93,6 @@ class App(win32serviceutil.ServiceFramework):
             for keyword in keywords:
                 if value not in registered_apps.values() and keyword in path:
                     self.db.save_process(value)
-
-    def run(self):
-        self.main_thread()
 
     def _get_mem_mb(self):
         match = re.fullmatch(r'(\d+)([A-Za-z])', self.config["Settings"]["gpu_mem_th"])
@@ -152,4 +160,8 @@ class App(win32serviceutil.ServiceFramework):
         return str(self.__dict__)
 
 if __name__ == '__main__':
-    win32serviceutil.HandleCommandLine(App)
+    if len(sys.argv) == 2 and sys.argv[1] == 'noservice':
+        app = App([], True)
+        app.run()
+    else:
+        win32serviceutil.HandleCommandLine(App)
