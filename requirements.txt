@@ -1,3 +1,4 @@
 pynvml
 psutil
 pywin32
+flask

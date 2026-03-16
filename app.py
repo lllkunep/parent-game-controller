@@ -39,14 +39,11 @@ class App(win32serviceutil.ServiceFramework):
 
         self.db = Database(self.db_path)
         self.db.add_default_keywords(self.default_keywords)
-        self.system = System()
+        self.system = System(self.db.save_log)
 
         if not no_service:
             win32serviceutil.ServiceFramework.__init__(self, args)
             self.stop_event = win32event.CreateEvent(None, 0, 0, None)
-
-    def run(self):
-        self.SvcDoRun()
 
     def SvcStop(self):
         self.ReportServiceStatus(win32service.SERVICE_STOP_PENDING)
@@ -55,16 +52,21 @@ class App(win32serviceutil.ServiceFramework):
 
     def SvcDoRun(self):
         while True:
-            if self.stop:
+            try:
+                if self.stop:
+                    exit(0)
+                start_time = time.time()
+                if self.checking_limits():
+                    titles = self.db.get_active_registered_apps()
+                    self.system.kill_processes(titles)
+                self.save_log()
+                end_time = time.time()
+                execution_time = end_time - start_time
+                time.sleep(self.log_interval - execution_time)
+            except KeyboardInterrupt:
                 exit(0)
-            start_time = time.time()
-            if self.checking_limits():
-                titles = self.db.get_active_registered_apps()
-                self.system.kill_processes(titles)
-            self.save_log()
-            end_time = time.time()
-            execution_time = end_time - start_time
-            time.sleep(self.log_interval - execution_time)
+            except Exception as e:
+                self.db.save_log('app', str(e))
 
     def checking_limits(self):
         return self.check_time_limits() or self.check_allows_time_intervals()
@@ -84,15 +86,19 @@ class App(win32serviceutil.ServiceFramework):
         registered_apps = self.db.get_registered_apps()
         working_app_titles = self.system.get_working_app_titles()
         now = datetime.now()
-        for key, value in registered_apps.items():
-            if value in working_app_titles.values():
-                self.db.save_process_log(key, now)
         for key, value in working_app_titles.items():
-            path = self.system.get_process_path(key)
+            path = str(self.system.get_process_path(key))
             keywords = self.db.get_keywords()
             for keyword in keywords:
-                if value not in registered_apps.values() and keyword in path:
-                    self.db.save_process(value)
+                if value not in registered_apps.values():
+                    self.db.save_process(value, path, keyword not in path)
+        for key, value in registered_apps.items():
+            process = self.db.get_process_by_title(value)
+            if value in working_app_titles.values() and process[3] == 0:
+                self.db.save_process_log(key, now)
+
+    def run(self):
+        self.SvcDoRun()
 
     def _get_mem_mb(self):
         match = re.fullmatch(r'(\d+)([A-Za-z])', self.config["Settings"]["gpu_mem_th"])
