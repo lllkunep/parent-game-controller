@@ -97,7 +97,7 @@ CREATE TABLE IF NOT EXISTS `logs`(
         return titles
 
     def get_all_apps(self):
-        self.cursor.execute('SELECT id, title, is_exception FROM process')
+        self.cursor.execute('SELECT id, title, path, is_exception FROM process')
         return self.cursor.fetchall()
 
     def get_active_registered_apps(self):

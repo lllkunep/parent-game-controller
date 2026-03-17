@@ -3,6 +3,7 @@ from datetime import datetime
 import re
 import time
 import sys
+from multiprocessing import Process
 
 import win32serviceutil
 import win32service
@@ -10,6 +11,7 @@ import win32event
 
 from db import Database
 from system import System
+from server import Server
 
 
 class App(win32serviceutil.ServiceFramework):
@@ -40,6 +42,7 @@ class App(win32serviceutil.ServiceFramework):
         self.db = Database(self.db_path)
         self.db.add_default_keywords(self.default_keywords)
         self.system = System(self.db.save_log)
+        self.server = Server(self.db_path)
 
         if not no_service:
             win32serviceutil.ServiceFramework.__init__(self, args)
@@ -51,6 +54,7 @@ class App(win32serviceutil.ServiceFramework):
         self.stop = True
 
     def SvcDoRun(self):
+        self.server.run_server()
         while True:
             try:
                 if self.stop:
@@ -96,6 +100,11 @@ class App(win32serviceutil.ServiceFramework):
             process = self.db.get_process_by_title(value)
             if value in working_app_titles.values() and process[3] == 0:
                 self.db.save_process_log(key, now)
+
+    def start_server(self):
+        self.server_process = Process(target=self.run_flask)
+        self.server_process.start()
+        self.is_running = True
 
     def run(self):
         self.SvcDoRun()

@@ -1,51 +1,79 @@
 from flask import Flask, redirect, request
 from multiprocessing import Process
+from time import sleep
+from db import Database
+
 
 class Server:
-    def __init__(self):
+    def __init__(self, db_path):
         self.server_process = None
         self.is_running = False
-        self.app = Flask(__name__)
-        self.register_routes()
+        self.app = None
         self.processes = []
         self.to_toggle = []
+        self.server_process = None
+        self.db_path = db_path
+        self.db = None
 
     def run_flask(self):
+        self.app = Flask(__name__)
+
+        @self.app.route('/processes', methods=['GET', 'POST'])
+        def processes():
+            self.db = Database(self.db_path)
+            resp = ''
+            if request.method == 'GET':
+                try:
+                    resp += '<html>\n<head></head><body><table>'
+                    resp += '<tr><th>ID</th><th>Name</th><th>Path</th><th>Is exception</th><th>Actions</th></tr>'
+                    for process in self.db.get_all_apps():
+                        if process[3] == 1:
+                            is_exception = 'checked'
+                        else:
+                            is_exception = 'not checked'
+                        action_link = f'<a href="/toggle?id={process[0]}">Toggle</a>'
+                        resp += f'<tr><td>{process[0]}</td><td>{process[1]}</td><td>{process[2]}</td><td>{is_exception}</td><td>{action_link}</td></tr>'
+                    resp += '</table></body></html>\n'
+                except Exception as e:
+                    print(e)
+            self.db.disconnect()
+            self.db = None
+            return resp
+
+        @self.app.route('/toggle', methods=['GET', 'POST'])
+        def toggle():
+            self.db = Database(self.db_path)
+            if request.method == 'GET':
+                process_id = request.args.get('id')
+                process = self.db.get_process_by_id(process_id)
+                print(process)
+                if process[2] == 1:
+                    self.db.unset_exception(process_id)
+                elif process[2] == 0:
+                    self.db.set_exception(process_id)
+                self.to_toggle.append(process_id)
+                self.db.disconnect()
+                self.db = None
+            return redirect('/processes')
+
         self.app.run(host="127.0.0.1", port=5000, debug=False, use_reloader=False)
 
     def run_server(self):
-        if not self.is_running:
+        if self.server_process is None:
             self.server_process = Process(target=self.run_flask)
             self.server_process.start()
-            self.is_running = True
 
     def stop_server(self):
-        if self.is_running:
+        if self.server_process is not None:
             self.server_process.terminate()
             self.server_process.join()
-            self.is_running = False
-
-    def register_routes(self):
-        @self.app.route('/processes', methods=['GET', 'POST'])
-        def processes():
-            if request.method == 'GET':
-                print('<html>\n<head></head><body><table>')
-                print('<tr><th>ID</th><th>Name</th><th>Is exception</th><th>Actions</th></tr>')
-                for process in self.db.get_all_apps():
-                    if process[2] == 1:
-                        is_exception = 'checked'
-                    else:
-                        is_exception = 'not checked'
-                    action_link = f'<a href="/toggle?id={process[0]}">Toggle</a>'
-                    print(
-                        f'<tr><td>{process[0]}</td><td>{process[1]}</td><td>{is_exception}</td><td>{action_link}</td></tr>')
-                print('</table></body></html>\n')
-
-        @self.app.route('/toggle', methods=['GET', 'POST'])
-        def process():
-            if request.method == 'GET':
-                process_id = request.args.get('id')
-                self.to_toggle.append(process_id)
-                redirect('/processes')
+            self.server_process = None
+            self.app = None
 
 
+if __name__ == '__main__':
+    server = Server()
+    server.run_flask()
+    while True:
+        sleep(10)
+        pass
