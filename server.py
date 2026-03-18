@@ -40,20 +40,61 @@ class Server:
             if request.method == 'GET':
                 try:
                     resp += '<html>\n<head></head><body><table>'
-                    resp += '<tr><th>ID</th><th>Name</th><th>Path</th><th>Is exception</th><th>Actions</th></tr>'
+                    resp += '<tr><th>ID</th><th>Name</th><th>Path</th><th>Is exception</th><th>Is new</th><th>Actions</th></tr>'
                     for process in self.db.get_all_apps():
                         if process[3] == 1:
                             is_exception = 'checked'
                         else:
                             is_exception = 'not checked'
+                        if process[4] == 1:
+                            is_new = 'NEW!!!'
+                        else:
+                            is_new = ''
                         action_link = f'<a href="/toggle?id={process[0]}">Toggle</a>'
-                        resp += f'<tr><td>{process[0]}</td><td>{process[1]}</td><td>{process[2]}</td><td>{is_exception}</td><td>{action_link}</td></tr>'
+                        resp += f'<tr><td>{process[0]}</td><td>{process[1]}</td><td>{process[2]}</td><td>{is_exception}</td><td>{is_new}</td><td>{action_link}</td></tr>'
                     resp += '</table></body></html>\n'
                 except Exception as e:
                     print(e)
             self.db.disconnect()
             self.db = None
             return resp
+
+        @self.app.route('/new-processes', methods=['GET', 'POST'])
+        @self.auth.login_required
+        def new_processes():
+            self.db = Database(self.db_path)
+            resp = ''
+            if request.method == 'GET':
+                try:
+                    resp += '<html>\n<head></head><body>'
+                    resp += '<a href="/unset-new">Unset new</a>'
+                    resp += '<table>'
+                    resp += '<tr><th>ID</th><th>Name</th><th>Path</th><th>Is exception</th><th>Is new</th><th>Actions</th></tr>'
+                    for process in self.db.get_new_apps():
+                        if process[3] == 1:
+                            is_exception = 'checked'
+                        else:
+                            is_exception = 'not checked'
+                        if process[4] == 1:
+                            is_new = 'NEW!!!'
+                        else:
+                            is_new = ''
+                        action_link = f'<a href="/toggle?id={process[0]}">Toggle</a>'
+                        resp += f'<tr><td>{process[0]}</td><td>{process[1]}</td><td>{process[2]}</td><td>{is_exception}</td><td>{is_new}</td><td>{action_link}</td></tr>'
+                    resp += '</table></body></html>\n'
+                except Exception as e:
+                    print(e)
+            self.db.disconnect()
+            self.db = None
+            return resp
+
+        @self.app.route('/unset-new', methods=['GET', 'POST'])
+        @self.auth.login_required
+        def unset_new():
+            self.db = Database(self.db_path)
+            if request.method == 'GET':
+                self.db.check_new_apps()
+            return redirect('/processes')
 
         @self.app.route('/toggle', methods=['GET', 'POST'])
         @self.auth.login_required

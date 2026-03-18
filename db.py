@@ -12,7 +12,8 @@ CREATE TABLE IF NOT EXISTS `process` (
 `id` INTEGER PRIMARY KEY,
 `title` TEXT NOT NULL,
 `path` TEXT NULL DEFAULT NULL,
-`is_exception` BOOLEAN NOT NULL DEFAULT 0
+`is_exception` BOOLEAN NOT NULL DEFAULT 0,
+`is_new` BOOLEAN NOT NULL DEFAULT 1
 )
                        ''')
 
@@ -42,7 +43,7 @@ CREATE TABLE IF NOT EXISTS `logs`(
         self.conn.commit()
 
     def get_process_by_title(self, title):
-        self.cursor.execute('SELECT id, title, path, is_exception FROM process WHERE title = ?', (title,))
+        self.cursor.execute('SELECT id, title, path, is_exception, is_new FROM process WHERE title = ?', (title,))
         data = self.cursor.fetchall()
         if len(data) > 0:
             return data[0]
@@ -52,7 +53,7 @@ CREATE TABLE IF NOT EXISTS `logs`(
     def save_process(self, title, path, is_exception = False):
         process = self.get_process_by_title(title)
         if process is None:
-            self.cursor.execute('INSERT INTO process (title, path, is_exception) VALUES (?, ?, ?)', (title, path, is_exception))
+            self.cursor.execute('INSERT INTO process (title, path, is_exception, is_new) VALUES (?, ?, ?, ?)', (title, path, is_exception, is_exception))
             self.conn.commit()
         elif process[2] != path:
             self.cursor.execute('UPDATE process SET path = ? WHERE id = ?', (path, process[0]))
@@ -97,8 +98,16 @@ CREATE TABLE IF NOT EXISTS `logs`(
         return titles
 
     def get_all_apps(self):
-        self.cursor.execute('SELECT id, title, path, is_exception FROM process')
+        self.cursor.execute('SELECT id, title, path, is_exception, is_new FROM process')
         return self.cursor.fetchall()
+
+    def get_new_apps(self):
+        self.cursor.execute('SELECT id, title, path, is_exception, is_new FROM process WHERE is_new = 1')
+        return self.cursor.fetchall()
+
+    def check_new_apps(self):
+        self.cursor.execute('UPDATE process SET is_new = 0 WHERE is_new = 1')
+        self.conn.commit()
 
     def get_active_registered_apps(self):
         self.cursor.execute('SELECT title FROM process WHERE is_exception = 0')

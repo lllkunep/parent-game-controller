@@ -94,11 +94,11 @@ class App(win32serviceutil.ServiceFramework):
             path = str(self.system.get_process_path(key))
             keywords = self.db.get_keywords()
             for keyword in keywords:
-                if value not in registered_apps.values():
+                if value not in registered_apps.values() and 'C:\\Windows\\' not in path:
                     self.db.save_process(value, path, keyword not in path)
         for key, value in registered_apps.items():
             process = self.db.get_process_by_title(value)
-            if value in working_app_titles.values() and process[3] == 0:
+            if value in working_app_titles.values() and (process[3] == 0 or process[4] == 1):
                 self.db.save_process_log(key, now)
 
     def start_server(self):
