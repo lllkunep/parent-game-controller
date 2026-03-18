@@ -2,6 +2,8 @@ from flask import Flask, redirect, request
 from multiprocessing import Process
 from time import sleep
 from db import Database
+from flask_httpauth import HTTPBasicAuth
+import hashlib
 
 
 class Server:
@@ -9,16 +11,29 @@ class Server:
         self.server_process = None
         self.is_running = False
         self.app = None
+        self.auth = None
         self.processes = []
         self.to_toggle = []
         self.server_process = None
         self.db_path = db_path
         self.db = None
+        self.auth_data = {
+            'admin': 'admin',
+            'password': 'REMOVED',
+        }
 
     def run_flask(self):
         self.app = Flask(__name__)
+        self.auth = HTTPBasicAuth()
+
+        @self.auth.verify_password
+        def verify_password(username, password):
+            passwd = hashlib.sha256(password.encode("utf-8")).hexdigest()
+            if username == self.auth_data['admin'] and passwd == self.auth_data['password']:
+                return username
 
         @self.app.route('/processes', methods=['GET', 'POST'])
+        @self.auth.login_required
         def processes():
             self.db = Database(self.db_path)
             resp = ''
@@ -41,6 +56,7 @@ class Server:
             return resp
 
         @self.app.route('/toggle', methods=['GET', 'POST'])
+        @self.auth.login_required
         def toggle():
             self.db = Database(self.db_path)
             if request.method == 'GET':
@@ -69,6 +85,7 @@ class Server:
             self.server_process.join()
             self.server_process = None
             self.app = None
+            self.auth = None
 
 
 if __name__ == '__main__':
