@@ -97,6 +97,13 @@ CREATE TABLE IF NOT EXISTS `logs`(
             titles[row[0]] = row[1]
         return titles
 
+    def get_registered_paths(self):
+        self.cursor.execute('SELECT id, path FROM process')
+        paths = {}
+        for row in self.cursor.fetchall():
+            paths[row[0]] = row[1]
+        return paths
+
     def get_all_apps(self):
         self.cursor.execute('SELECT id, title, path, is_exception, is_new FROM process')
         return self.cursor.fetchall()
@@ -140,3 +147,13 @@ CREATE TABLE IF NOT EXISTS `logs`(
     def save_log(self, context, message):
         self.cursor.execute('INSERT INTO logs (context, message) VALUES (?, ?)', (context, message))
         self.conn.commit()
+
+    def get_statistics(self, from_time):
+        self.cursor.execute('''
+SELECT process_log.id, process_log.`timestamp`, process.id, process.title, process.path, process.is_exception, process.is_new
+FROM process_log
+LEFT JOIN process ON process.id = process_log.process_id
+WHERE process_log.`timestamp` >= ?
+ORDER BY process_log.`timestamp`
+                                    ''', (from_time,))
+        return self.cursor.fetchall()

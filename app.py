@@ -42,7 +42,7 @@ class App(win32serviceutil.ServiceFramework):
         self.db = Database(self.db_path)
         self.db.add_default_keywords(self.default_keywords)
         self.system = System(self.db.save_log)
-        self.server = Server(self.db_path)
+        self.server = Server(self.db_path, self.starting_point, self.log_interval)
 
         if not no_service:
             win32serviceutil.ServiceFramework.__init__(self, args)
@@ -76,7 +76,9 @@ class App(win32serviceutil.ServiceFramework):
         return self.check_time_limits() or self.check_allows_time_intervals()
 
     def check_time_limits(self):
-        log_count = self.db.get_log_count_by_time(self.starting_point)
+        today_start = datetime.now()
+        today_start = today_start.replace(hour=self.starting_point.hour, minute=self.starting_point.minute)
+        log_count = self.db.get_log_count_by_time(today_start)
         time_worked = int((log_count * self.log_interval) / 60)
         return time_worked >= self.usage_limit
 

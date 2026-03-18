@@ -1,13 +1,13 @@
-import psutil
-from db import Database
 
 def main():
-	a = ['a', 'b', 'c']
-	print('a' in a)
-	# pids = psutil.pids()
-	# print(pids)
-	# p = psutil.Process(100)
-	# print(p.exe())
+	aaa = {}
+	try:
+		aaa['a'].append(1)
+		print(aaa)
+	except KeyError:
+		aaa['a'] = []
+		aaa['a'].append(1)
+	print(aaa)
 	pass
 
 if __name__ == '__main__':
