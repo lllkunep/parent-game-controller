@@ -1,10 +1,28 @@
 import sqlite3
+from pathlib import Path
 
 class Database:
+    default_keywords = ['GOG Games', 'Steam', 'Roblox']
+    default_options = {
+        'usage_limit': '02:00',
+        'time_limits': '00:00-07:00,22:00-23:59',
+        'log_interval': '60',
+        'starting_point': '07:00',
+        'username':'admin',
+        'password':'111111',
+    }
+
     def __init__(self, db_path):
+        file_path = Path(db_path)
+        if file_path.is_file():
+            is_empty_db = False
+        else:
+            is_empty_db = True
         self.conn = sqlite3.connect(db_path)
         self.cursor = self.conn.cursor()
-        self.init_db()
+        if is_empty_db:
+            self.init_db()
+            self.fill_default_data()
 
     def init_db(self):
         self.cursor.execute('''
@@ -40,7 +58,21 @@ CREATE TABLE IF NOT EXISTS `logs`(
 )
                                     ''')
 
+        self.cursor.execute('''
+CREATE TABLE IF NOT EXISTS `options`(
+`id` INTEGER PRIMARY KEY,
+`name` text NOT NULL,
+`value` text NOT NULL
+)
+                                            ''')
+
         self.conn.commit()
+
+    def fill_default_data(self):
+        for keyword in self.default_keywords:
+            self.add_keyword(keyword)
+        for name, value in self.default_options.items():
+            self.set_option(name, value)
 
     def get_process_by_title(self, title):
         self.cursor.execute('SELECT id, title, path, is_exception, is_new FROM process WHERE title = ?', (title,))
@@ -157,3 +189,15 @@ WHERE process_log.`timestamp` >= ?
 ORDER BY process_log.`timestamp`
                                     ''', (from_time,))
         return self.cursor.fetchall()
+
+    def get_option(self, name):
+        self.cursor.execute('SELECT value FROM options WHERE name = ?', (name,))
+        data = self.cursor.fetchone()
+        if data is not None:
+            return data[0]
+        else:
+            return None
+
+    def set_option(self, name, value):
+        self.cursor.execute('UPDATE options SET value = ? WHERE name = ?', (value, name))
+        self.conn.commit()

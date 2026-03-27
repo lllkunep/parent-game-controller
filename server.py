@@ -4,6 +4,7 @@ from flask import Flask, redirect, request
 from multiprocessing import Process
 from time import sleep
 from db import Database
+from api import Api
 from flask_httpauth import HTTPBasicAuth
 import hashlib
 
@@ -30,11 +31,24 @@ class Server:
         self.app = Flask(__name__)
         self.auth = HTTPBasicAuth()
 
+        @self.app.before_request
+        def load_db():
+            self.db = Database(self.db_path)
+
         @self.auth.verify_password
         def verify_password(username, password):
             passwd = hashlib.sha256(password.encode("utf-8")).hexdigest()
-            if username == self.auth_data['admin'] and passwd == self.auth_data['password']:
+            orig_username = self.db.get_option("username")
+            orig_passwd = self.db.get_option("password")
+            if username == orig_username and passwd == orig_passwd:
                 return username
+            return False
+
+        @self.app.route('/api/<action>', methods=['GET', 'POST'])
+        @self.auth.login_required
+        def api(action):
+            self.api = Api(self.db)
+            return self.api.start_routes(action, request)
 
         @self.app.route('/processes', methods=['GET', 'POST'])
         @self.auth.login_required

@@ -1,6 +1,4 @@
-import configparser
 from datetime import datetime
-import re
 import time
 import sys
 from multiprocessing import Process
@@ -18,29 +16,17 @@ class App(win32serviceutil.ServiceFramework):
     _svc_name_ = "GpuControl"
     _svc_display_name_ = "GPU Usage Control"
 
-    config_path = 'C:\\Windows\\System32\\drivers\\etc\\gpucontrol.ini'
-    db_path = 'C:\\Windows\\gpucontrol.db'
-
-    no_service_config_path = 'gpucontrol.ini'
-    no_service_db_path = 'gpucontrol.db'
+    db_path = 'gpucontrol.db'
 
     def __init__(self, args, no_service = False):
-        if no_service:
-            self.config_path = self.no_service_config_path
-            self.db_path = self.no_service_db_path
         self.stop = False
-        self.config = configparser.ConfigParser()
-        self.config.read(self.config_path)
 
-        self.gpu_mem_th = self._get_mem_mb()
         self.usage_limit = self._get_limit_mins()
         self.time_limits = self._get_time_limits()
         self.log_interval = self._get_log_interval()
         self.starting_point = self._get_starting_point()
-        self.default_keywords = self._get_default_keywords()
 
         self.db = Database(self.db_path)
-        self.db.add_default_keywords(self.default_keywords)
         self.system = System(self.db.save_log)
         self.server = Server(self.db_path, self.starting_point, self.log_interval)
 
@@ -111,25 +97,8 @@ class App(win32serviceutil.ServiceFramework):
     def run(self):
         self.SvcDoRun()
 
-    def _get_mem_mb(self):
-        match = re.fullmatch(r'(\d+)([A-Za-z])', self.config["Settings"]["gpu_mem_th"])
-        if match is None:
-            raise TypeError('invalid arg "gpu_mem_th"')
-
-        number = int(match.group(1))
-        unit = match.group(2)
-
-        if unit == 'G':
-            mem_mb = number * 1024
-        elif unit == 'M':
-            mem_mb = number
-        else:
-            raise TypeError('invalid type ' + unit + ' for "gpu_mem_th"')
-
-        return mem_mb
-
     def _get_limit_mins(self):
-        limit = self.config["Settings"]["usage_limit"]
+        limit = self.db.get_option("usage_limit")
         try:
             t = datetime.strptime(limit, "%H:%M")
             total_minutes = t.hour * 60 + t.minute
@@ -141,7 +110,8 @@ class App(win32serviceutil.ServiceFramework):
     def _get_time_limits(self):
         try:
             time_deltas = []
-            deltas = self.config["Settings"]["time_limits"].split(',')
+            time_limits = self.db.get_option("time_limits")
+            deltas = time_limits.split(',')
             for delta in deltas:
                 start_end = delta.split('-')
                 start = datetime.strptime(start_end[0], "%H:%M")
@@ -154,24 +124,17 @@ class App(win32serviceutil.ServiceFramework):
 
     def _get_log_interval(self):
         try:
-            time_interval = int(self.config["Settings"]["log_interval"])
+            time_interval = int(self.db.get_option("log_interval"))
         except:
             raise ValueError('invalid values for "log_interval"')
         return time_interval
 
     def _get_starting_point(self):
         try:
-            starting_point = datetime.strptime(self.config["Settings"]["starting_point"], "%H:%M")
+            starting_point = datetime.strptime(self.db.get_option('starting_point'), "%H:%M")
         except:
             raise ValueError('invalid values for "starting_point"')
         return starting_point
-
-    def _get_default_keywords(self):
-        try:
-            default_keywords = self.config["Settings"]["default_keywords"].split(',')
-        except:
-            raise ValueError('invalid values for "default_keywords"')
-        return default_keywords
 
     def __str__(self):
         return str(self.__dict__)
