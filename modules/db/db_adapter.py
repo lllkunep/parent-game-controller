@@ -40,7 +40,7 @@ class DbAdapter:
         'log_interval': '60',
         'starting_point': '07:00',
         'username': 'admin',
-        'password': '111111',
+        'password': 'REMOVED',
     }
 
     @classmethod
@@ -135,7 +135,8 @@ class DbAdapter:
                         task.set_result(cursor.rowcount)
                     case _:
                         raise TypeError('Invalid function type')
-
+            except sqlite3.Error as e:
+                task.set_error(Exception(f'SQLite error: {e} query was: {task.query}'))
             except Exception as e:
                 task.set_error(e)
 

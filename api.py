@@ -1,22 +1,36 @@
-from db import Database
+from models import *
+from system import System
 
 
 class Api:
-    def __init__(self, db_wrapper):
-        self.db = db_wrapper
-        pass
+    def __init__(self):
+        self.request = None
 
     def start_routes(self, route, request):
         action = getattr(self, route)
-        action(request)
-        pass
+        self.request = request
+        return action()
 
-    def data(self, request):
+    def data(self):
+        name = System.get_host_name()
+        ip = System.get_reliable_local_ip()
+        status = 'Ok'
+        return {'name': name, 'ip': ip, 'status': status}
 
-        pass
+    def summary(self):
+        date = self.request.args.get('date')
+        start = Options.get_start(date)
+        log_count = ProcessLog.get_count_by_time(start)
+        log_interval = Options.get_log_interval()
 
-    def summary(self, request):
-        pass
+        usage_limit = Options.get_usage_limit_minutes()
+        time_worked = int((log_count * log_interval) / 60)
+        new_apps_count = Process.get_new_count()
+        time_left = usage_limit - time_worked
+        if time_left < 0:
+            time_left = 0
+
+        return {'game_time': log_count, 'time_left': time_left, 'new_apps_count': new_apps_count}
 
     def processes(self, request):
         pass

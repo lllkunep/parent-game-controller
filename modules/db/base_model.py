@@ -128,13 +128,14 @@ class BaseModel:
         join_clause = ''
         if join:
             for table, on, join_fields in join:
-                select_clause += ', ' + ', '.join(f'{table}.{f}' for f in join_fields)
+                if join_fields:
+                    select_clause += ', ' + ', '.join(f'{table}.{f}' for f in join_fields)
                 join_clause += f' LEFT JOIN {table} ON {on}'
 
         params = ()
         where_clause = ''
         if where:
-            conditions = ' AND '.join(f'{k} = ?' for k in where)
+            conditions = ' AND '.join(where.keys())
             where_clause = f' WHERE {conditions}'
             params = tuple(where.values())
 
