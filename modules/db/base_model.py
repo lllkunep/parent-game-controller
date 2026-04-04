@@ -111,6 +111,15 @@ class BaseModel:
         return rows
 
     @classmethod
+    def fetchall_by_pk(cls, query, params=()):
+        adapter = DbAdapter.get_adapter()
+        data = adapter.fetchall(query, params)
+        rows = {}
+        for row in data:
+            rows[row[cls.get_primary_key()]] = cls.from_dict(dict(row))
+        return rows
+
+    @classmethod
     def fetchone(cls, query, params=()):
         adapter = DbAdapter.get_adapter()
         data = adapter.fetchone(query, params)
@@ -132,12 +141,20 @@ class BaseModel:
                     select_clause += ', ' + ', '.join(f'{table}.{f}' for f in join_fields)
                 join_clause += f' LEFT JOIN {table} ON {on}'
 
-        params = ()
+        params = []
         where_clause = ''
         if where:
-            conditions = ' AND '.join(where.keys())
-            where_clause = f' WHERE {conditions}'
-            params = tuple(where.values())
+            conditions = []
+            for condition, value in where.items():
+                if isinstance(value, (list, tuple)):
+                    placeholders = ', '.join(['?'] * len(value))
+                    conditions.append(f'{condition} IN ({placeholders})')
+                    params.extend(value)
+                else:
+                    conditions.append(condition)
+                    params.append(value)
+            where_clause = ' WHERE ' + ' AND '.join(conditions)
+            params = tuple(params)
 
         query = f'SELECT {select_clause} FROM {cls.get_table_name()}{join_clause}{where_clause}'
 

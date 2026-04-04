@@ -25,7 +25,7 @@
 *Response* JSON  
 - **list** list  
   - **id** int
-  - **name** string
+  - **title** string
   - **path** string
   - **is_exception** bool
   - **is_new** bool
@@ -44,11 +44,12 @@
 
 *Response* JSON  
 - **list** list
-  - **name** string
+  - **title** string
   - **path** string
+  - **process_id** int
   - **is_exception** bool
   - **is_new** bool
-  - **total_time** datetime SQL format
+  - **total_time** int, minutes
   - **working_time** list
     - **start_time** datetime SQL format
     - **end_time** datetime SQL format

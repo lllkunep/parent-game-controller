@@ -32,17 +32,26 @@ class Api:
 
         return {'game_time': log_count, 'time_left': time_left, 'new_apps_count': new_apps_count}
 
-    def processes(self, request):
+    def processes(self):
+        process_type = self.request.args.get('type', 'all')
+        processed_apps = Process.get_by_type(process_type)
+        counters = Process.get_counters()
+        return {'list ': processed_apps, 'counters': counters}
+
+    def statistics(self):
+        process_type = self.request.args.get('type', 'all')
+        from_time = self.request.args.get('from')
+        to_time = self.request.args.get('to')
+
+        p_list = ProcessLog.get_statistics(process_type, from_time, to_time)
+
+        return {'list': p_list}
+
+    def options(self):
         pass
 
-    def statistics(self, request):
+    def log(self):
         pass
 
-    def options(self, request):
-        pass
-
-    def log(self, request):
-        pass
-
-    def keywords(self, request):
+    def keywords(self):
         pass
