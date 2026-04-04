@@ -3,13 +3,13 @@ from datetime import datetime
 from modules.db.base_model import BaseModel
 
 class Process(BaseModel):
-    process_types = ['all', 'games', 'new', 'not_games']
+    process_types = ['unknown', 'game', 'application']
 
     @staticmethod
-    def get_new_count():
+    def get_unknown_count():
         query, params = Process.select(
             fields=['COUNT(id) as count'],
-            where={'is_new = ?':1}
+            where={'type = ?':'unknown'}
         )
         counter = Process.fetchone(query, params)
         if counter is None:
@@ -19,20 +19,16 @@ class Process(BaseModel):
 
     @staticmethod
     def get_by_type(process_type='all'):
-        if process_type not in Process.process_types:
+        if process_type not in Process.process_types + ['all']:
             raise ValueError('invalid process type')
 
-        if process_type == 'not_games':
-            where = {'is_exception = ?':1}
-        elif process_type == 'games':
-            where = {'is_exception = ?':0}
-        elif process_type == 'new':
-            where = {'is_new = ?':1}
+        if process_type != 'all':
+            where = {'type = ?':process_type}
         else:
             where = None
 
         query, params = Process.select(
-            fields=['id', 'title', 'path', 'is_exception', 'is_new'],
+            fields=['id', 'title', 'path', 'type'],
             where=where
         )
         _processes = Process.fetchall(query, params)
@@ -48,24 +44,19 @@ class Process(BaseModel):
         counter_all = Process.fetchone(query, params).count
 
         query, params = Process.select(
-            fields=['COUNT(id) as count', 'is_exception', 'is_new'],
-            group_by='is_exception, is_new'
+            fields=['type', 'COUNT(id) as count'],
+            group_by='type'
         )
         counters = Process.fetchall(query, params)
 
         counter_array = {
             'all': counter_all,
-            'games': 0,
-            'new': 0,
-            'not_games': 0
+            'unknown': 0,
+            'game': 0,
+            'application': 0
         }
         for counter in counters:
-            if counter.is_exception == 1 and counter.is_new == 0:
-                counter_array['not_games'] = counter.count
-            elif counter.is_exception == 0 and counter.is_new == 0:
-                counter_array['games'] = counter.count
-            elif counter.is_exception == 0 and counter.is_new == 1:
-                counter_array['new'] = counter.count
+            counter_array[counter.type] = counter.count
 
         return counter_array
 
@@ -76,7 +67,7 @@ class ProcessLog(BaseModel):
         query, params = ProcessLog.select(
             fields=['COUNT(DISTINCT timestamp) as count'],
             join=[['process', 'process.id = process_log.process_id', []]],
-            where={'timestamp >= ?':start_time, 'process.is_exception = ?':0}
+            where={'timestamp >= ?':start_time, 'process.type = ?':'game'}
         )
         counter = ProcessLog.fetchone(query, params)
         if counter is None:
@@ -86,20 +77,17 @@ class ProcessLog(BaseModel):
 
     @staticmethod
     def get_statistics(process_type='all', start_time=None, end_time=None):
+        if process_type not in Process.process_types + ['all']:
+            raise ValueError('invalid process type')
+
         where = {}
 
         if start_time is not None:
             where['timestamp >= ?'] = start_time
         if end_time is not None:
             where['timestamp <= ?'] = end_time
-        if process_type == 'games':
-            where['process.is_exception = ?'] = 0
-        elif process_type == 'new':
-            where['process.is_new = ?'] = 1
-        elif process_type == 'all':
-            pass
-        else:
-            raise ValueError('invalid process type')
+        if process_type != 'all':
+            where['process.type = ?'] = process_type
 
         query, params = ProcessLog.select(
             fields=['process_log.id', 'process_log.`timestamp`', 'process_log.process_id'],
@@ -162,8 +150,7 @@ class ProcessLog(BaseModel):
                     'title': process_list[app[0]].title,
                     'path': process_list[app[0]].path,
                     'process_id': process_list[app[0]].id,
-                    'is_exception': process_list[app[0]].is_exception,
-                    'is_new': process_list[app[0]].is_exception,
+                    'type': process_list[app[0]].type,
                     'total_time': time_sum[app[0]],
                     'working_time': [app[1]]
                 }

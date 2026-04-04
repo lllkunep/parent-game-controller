@@ -25,12 +25,12 @@ class Api:
 
         usage_limit = Options.get_usage_limit_minutes()
         time_worked = int((log_count * log_interval) / 60)
-        new_apps_count = Process.get_new_count()
+        unknown_apps_count = Process.get_unknown_count()
         time_left = usage_limit - time_worked
         if time_left < 0:
             time_left = 0
 
-        return {'game_time': log_count, 'time_left': time_left, 'new_apps_count': new_apps_count}
+        return {'game_time': log_count, 'time_left': time_left, 'unknown_apps_count': unknown_apps_count}
 
     def processes(self):
         process_type = self.request.args.get('type', 'all')

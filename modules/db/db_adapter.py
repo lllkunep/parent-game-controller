@@ -50,10 +50,11 @@ class DbAdapter:
                 raise RuntimeError('DbAdapter already initialized')
             is_new = not Path(db_path).is_file()
             cls._instance = DbAdapter(db_path)
-            cls._instance._setup_schema()
             if is_new:
+                cls._instance._setup_schema()
                 cls._instance._fill_defaults()
             cls._instance.start()
+        return cls._instance
 
     @classmethod
     def get_adapter(cls):
@@ -74,8 +75,7 @@ class DbAdapter:
                 `id` INTEGER PRIMARY KEY,
                 `title` TEXT NOT NULL,
                 `path` TEXT NULL DEFAULT NULL,
-                `is_exception` BOOLEAN NOT NULL DEFAULT 0,
-                `is_new` BOOLEAN NOT NULL DEFAULT 1
+                `type` TEXT NOT NULL DEFAULT 'unknown'
             );
             CREATE TABLE IF NOT EXISTS `process_log` (
                 `id` INTEGER PRIMARY KEY,
@@ -133,6 +133,10 @@ class DbAdapter:
                     case 'exec':
                         connection.commit()
                         task.set_result(cursor.rowcount)
+                    case 'executescript':
+                        connection.executescript(task.query)
+                        connection.commit()
+                        task.set_result(True)
                     case _:
                         raise TypeError('Invalid function type')
             except sqlite3.Error as e:
@@ -157,6 +161,11 @@ class DbAdapter:
 
     def exec(self, query, params=()):
         task = DbTask(query, 'exec', params)
+        self.task_queue.put(task)
+        return task.get()
+
+    def executescript(self, query):
+        task = DbTask(query, 'executescript', ())
         self.task_queue.put(task)
         return task.get()
 

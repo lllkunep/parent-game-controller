@@ -102,7 +102,9 @@ class BaseModel:
         return cls(**data)
 
     @classmethod
-    def fetchall(cls, query, params=()):
+    def fetchall(cls, query=None, params=()):
+        if query is None:
+            query = f'SELECT * FROM {cls.get_table_name()}'
         adapter = DbAdapter.get_adapter()
         data = adapter.fetchall(query, params)
         rows = []

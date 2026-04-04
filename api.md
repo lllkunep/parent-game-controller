@@ -15,30 +15,29 @@
 *Response* JSON  
 - **game_time** int, minutes  
 - **time_left** int, minutes  
-- **new_apps_count** int
+- **unknown_apps_count** int
 
 ## get processes
 **GET** /api/processes?type={type}  
 *params*  
-- **type** enum (all, games, new, not_games)  
+- **type** enum (all, unknown, game, application)  
 
 *Response* JSON  
 - **list** list  
   - **id** int
   - **title** string
   - **path** string
-  - **is_exception** bool
-  - **is_new** bool
+  - **type** enum (unknown, game, application)
 - **counters** obj
   - **all**
-  - **games**
-  - **new**
-  - **not_games**
+  - **unknown**
+  - **game**
+  - **application**
 
 ## get statistics
 **GET** /api/statistics?type={type}&from={from}&to={to}  
 *params*  
-- **type** enum (all, games, new)
+- **type** enum (all, unknown, game)
 - **from** *optional* datetime SQL format
 - **to** *optional* datetime SQL format
 
@@ -47,8 +46,7 @@
   - **title** string
   - **path** string
   - **process_id** int
-  - **is_exception** bool
-  - **is_new** bool
+  - **type** enum (unknown, game, application)
   - **total_time** int, minutes
   - **working_time** list
     - **start_time** datetime SQL format
