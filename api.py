@@ -48,10 +48,14 @@ class Api:
         return {'list': p_list}
 
     def options(self):
-        pass
+        return Options.get_all_list()
 
-    def log(self):
-        pass
+    def logs(self):
+        page = self.request.args.get('page', '1')
+        l_from = self.request.args.get('from')
+        l_to = self.request.args.get('to')
+        data = Logs.get_data_by_page(int(page), l_from, l_to)
+        return data
 
     def keywords(self):
-        pass
+        return {'keywords': Keywords.get_all_list()}

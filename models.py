@@ -157,7 +157,14 @@ class ProcessLog(BaseModel):
 
         return list(by_apps.values())
 
-class Keyword(BaseModel):
+class Keywords(BaseModel):
+    @staticmethod
+    def get_all_list():
+        _keywords = Keywords.fetchall()
+        keywords = []
+        for keyword in _keywords:
+            keywords.append(keyword.keyword)
+        return keywords
     pass
 
 class Options(BaseModel):
@@ -191,6 +198,55 @@ class Options(BaseModel):
         t = datetime.strptime(Options.get('usage_limit'), "%H:%M")
         return t.hour * 60 + t.minute
 
+    @staticmethod
+    def get_all_list():
+        _options = Options.fetchall()
+        options = {}
+        for option in _options:
+            if option.name in ['name', 'password']:
+                continue
+            if option.name == 'time_limits':
+                options[option.name] = []
+                limits = option.value.split(',')
+                for limit in limits:
+                    start_end = limit.split('-')
+                    options[option.name].append({'start_time':start_end[0], 'end_time':start_end[1]})
+            else:
+                options[option.name] = option.value
+        return options
+
 
 class Logs(BaseModel):
-    pass
+    @staticmethod
+    def get_data_by_page(page=1, l_from=None, l_to=None, limit=20):
+        where = {}
+        if l_from is not None:
+            where['time >= ?'] = l_from
+        if l_to is not None:
+            where['time <= ?'] = l_to
+
+        query, params = Logs.select(
+            fields=['COUNT(id) as count'],
+            where=where,
+            order_by='id DESC'
+        )
+
+        counter = int(Logs.fetchone(query, params).count)
+
+        total_pages = counter // limit + int(counter % limit > 0)
+
+        query, params = Logs.select(
+            limit=limit,
+            where=where,
+            offset=(page-1)*limit
+        )
+        _logs = Logs.fetchall(query, params)
+        logs = []
+        for log in _logs:
+            logs.append(log.get_data())
+
+        return {
+            'page': page,
+            'total_pages': total_pages,
+            'list': logs,
+        }

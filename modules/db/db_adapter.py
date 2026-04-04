@@ -89,7 +89,8 @@ class DbAdapter:
             CREATE TABLE IF NOT EXISTS `logs` (
                 `id` INTEGER PRIMARY KEY,
                 `context` TEXT NOT NULL,
-                `message` TEXT NOT NULL
+                `message` TEXT NOT NULL,
+                `time` TIMESTAMP NOT NULL
             );
             CREATE TABLE IF NOT EXISTS `options` (
                 `id` INTEGER PRIMARY KEY,

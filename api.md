@@ -56,15 +56,15 @@
 **GET** /api/options  
 
 *Response* JSON  
-- **time_intervals** list
+- **usage_limit** time HH:MM
+- **time_limits** list
   - **start_time** time HH:MM
   - **end_time** time HH:MM
-- **time_limit** time HH:MM
 - **log_interval** int seconds
 - **starting_point** time HH:MM
 
-## get log
-**GET** /api/log?page={page}&from={from}&to={to}  
+## get logs
+**GET** /api/logs?page={page}&from={from}&to={to}  
 *params*  
 - **page** int
 - **from** *optional* datetime SQL format
@@ -74,8 +74,8 @@
 - **page** int
 - **total_pages** int
 - **list** list
-  - **datetime** datetime SQL format
-  - **type** string
+  - **time** datetime SQL format
+  - **context** string
   - **message** string
 
 ## get keywords
@@ -85,8 +85,15 @@
 - **keywords** list
   - string
 
-## set options
-**POST** /api/options  
+## add keyword
+**POST** /api/keywords
+*params*
+- **keyword** string
+
+## delete keyword
+**DELETE** /api/keywords
+*params*
+- **id** int
 
 *params*
 - **time_intervals** *optional* list
@@ -103,5 +110,4 @@
 
 *params*
 - **id** int
-- **is_exception** bool
-- **is_new** bool
+- **type** enum (unknown, game, application) 
