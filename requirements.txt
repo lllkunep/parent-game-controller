@@ -1,3 +1,4 @@
+flask
+flask-httpauth
 psutil
 pywin32
-flask
