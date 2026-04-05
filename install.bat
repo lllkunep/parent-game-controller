@@ -44,6 +44,10 @@ if %errorLevel% neq 0 (
     exit /b 1
 )
 
+netsh advfirewall firewall add rule name="GpuControl API TCP" protocol=TCP dir=in localport=5000 action=allow
+
+netsh advfirewall firewall add rule name="GpuControl API UDP" protocol=UPD dir=in localport=9999 action=allow
+
 echo.
 echo Service successfully installed and started.
 pause
