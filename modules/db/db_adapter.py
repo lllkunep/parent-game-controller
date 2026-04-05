@@ -41,6 +41,7 @@ class DbAdapter:
         'starting_point': '07:00',
         'username': 'admin',
         'password': 'REMOVED',
+        'mode': 'auto'
     }
 
     @classmethod

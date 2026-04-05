@@ -5,6 +5,7 @@ from system import System
 class Api:
     def __init__(self):
         self.request = None
+        self.status = 'ok'
 
     def start_routes(self, route, request):
         action = getattr(self, route)
@@ -14,8 +15,9 @@ class Api:
     def data(self):
         name = System.get_host_name()
         ip = System.get_reliable_local_ip()
-        status = 'Ok'
-        return {'name': name, 'ip': ip, 'status': status}
+        status = self.status
+        mode = Options.get('mode')
+        return {'name': name, 'ip': ip, 'status': status, 'mode': mode}
 
     def summary(self):
         date = self.request.args.get('date')
@@ -33,6 +35,18 @@ class Api:
         return {'game_time': log_count, 'time_left': time_left, 'unknown_apps_count': unknown_apps_count}
 
     def processes(self):
+        if self.request.method == 'POST':
+            process_id = self.request.form.get('id')
+            process_type = self.request.form.get('type')
+            process = Process.get_by_id(process_id)
+            if process is None:
+                return {'status': 'error', 'message': 'Invalid process id'}
+            try:
+                process.set_type(process_type)
+            except ValueError as e:
+                return {'status': 'error', 'message': str(e)}
+            return {'status': 'success'}
+
         process_type = self.request.args.get('type', 'all')
         processed_apps = Process.get_by_type(process_type)
         counters = Process.get_counters()
@@ -48,6 +62,15 @@ class Api:
         return {'list': p_list}
 
     def options(self):
+        if self.request.method == 'POST':
+            try:
+                name = self.request.form.get('name')
+                value = self.request.form.get('value')
+                Options.update_option(name, value)
+            except (KeyError, ValueError) as e:
+                return {'status': 'error', 'message': str(e)}
+            return {'status': 'success', 'message': 'Options updated'}
+
         return Options.get_all_list()
 
     def logs(self):
@@ -58,4 +81,18 @@ class Api:
         return data
 
     def keywords(self):
+        if self.request.method == 'POST':
+            action = self.request.form.get('action')
+            keyword = self.request.form.get('keyword')
+            try:
+                if action == 'add':
+                    Keywords.add_keyword(keyword)
+                elif action == 'delete':
+                    Keywords.delete_keyword(keyword)
+                else:
+                    return {'status': 'error', 'message': 'Invalid action'}
+            except ValueError as e:
+                return {'status': 'error', 'message': str(e)}
+            return {'status': 'success', 'message': 'Keywords updated'}
+
         return {'keywords': Keywords.get_all_list()}

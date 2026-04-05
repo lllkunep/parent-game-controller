@@ -16,7 +16,7 @@ class BaseModel:
         if primary_key not in self.data or self.data[primary_key] is None:
             self.insert(self.data)
         else:
-            self.update({primary_key: self.data[primary_key]}, self.data)
+            self.update({f'{primary_key} = ?': self.data[primary_key]}, self.data)
         return self
 
     def delete(self):
@@ -83,11 +83,25 @@ class BaseModel:
 
         set_items = {k: v for k, v in data.items() if k != pk}
         set_clause = ', '.join(f'{k} = ?' for k in set_items)
-        where_clause = ' AND '.join(f'{k} = ?' for k in where)
 
-        query = f'UPDATE {table_name} SET {set_clause} WHERE {where_clause}'
+        params = tuple(set_items.values())
 
-        params = tuple(set_items.values()) + tuple(where.values())
+        where_clause = ''
+        _params = []
+        if where:
+            conditions = []
+            for condition, value in where.items():
+                if isinstance(value, (list, tuple)):
+                    placeholders = ', '.join(['?'] * len(value))
+                    conditions.append(f'{condition} IN ({placeholders})')
+                    _params.extend(value)
+                else:
+                    conditions.append(condition)
+                    _params.append(value)
+            where_clause = ' WHERE ' + ' AND '.join(conditions)
+            params += tuple(_params)
+
+        query = f'UPDATE {table_name} SET {set_clause} {where_clause}'
 
         adapter = DbAdapter.get_adapter()
         adapter.exec(query, params)

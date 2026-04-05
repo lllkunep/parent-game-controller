@@ -1,14 +1,10 @@
+from models import *
+from modules.db.db_adapter import DbAdapter
 
 def main():
-	aaa = {}
-	try:
-		aaa['a'].append(1)
-		print(aaa)
-	except KeyError:
-		aaa['a'] = []
-		aaa['a'].append(1)
-	print(aaa)
 	pass
 
 if __name__ == '__main__':
+	adapter = DbAdapter.init('gpucontrol.db')
 	main()
+	adapter.close()

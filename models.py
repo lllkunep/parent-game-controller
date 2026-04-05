@@ -1,9 +1,22 @@
+import hashlib
+import json
 from datetime import datetime
 
 from modules.db.base_model import BaseModel
 
 class Process(BaseModel):
+    type: str
     process_types = ['unknown', 'game', 'application']
+
+    def set_type(self, process_type):
+        if process_type not in self.process_types:
+            raise ValueError('invalid process type')
+        self.type = process_type
+        self.save()
+
+    @staticmethod
+    def get_by_id(process_id):
+        return Process.get_by_pk(process_id)
 
     @staticmethod
     def get_unknown_count():
@@ -165,9 +178,31 @@ class Keywords(BaseModel):
         for keyword in _keywords:
             keywords.append(keyword.keyword)
         return keywords
-    pass
+
+    @staticmethod
+    def get_by_keyword(keyword):
+        query, params = Keywords.select(where={'keyword = ?':keyword})
+        return Keywords.fetchone(query, params)
+
+    @staticmethod
+    def add_keyword(keyword):
+        keywords = Keywords.get_by_keyword(keyword)
+        if keywords is None:
+            Keywords.insert({'keyword':keyword})
+        else:
+            raise ValueError('keyword already exists')
+
+    @staticmethod
+    def delete_keyword(keyword):
+        keywords = Keywords.get_by_keyword(keyword)
+        if keywords is not None:
+            keywords.delete()
+        else:
+            raise ValueError('invalid keyword')
 
 class Options(BaseModel):
+    allowed_modes = ['auto', 'allow', 'deny']
+
     @staticmethod
     def get(name):
         query, params = Options.select(
@@ -215,6 +250,74 @@ class Options(BaseModel):
                 options[option.name] = option.value
         return options
 
+    @staticmethod
+    def check_password(password):
+        return Options.get('password') == hashlib.sha256(password.encode("utf-8")).hexdigest()
+
+    @staticmethod
+    def check_username(username):
+        return Options.get('username') == username
+
+    @staticmethod
+    def update_option(name, value):
+        _value = None
+        if name == 'username':
+            _value = value
+        if name == 'mode':
+            if value not in Options.allowed_modes:
+                raise ValueError('invalid mode')
+            _value = value
+        elif name in ['starting_point', 'usage_limit']:
+            try:
+                datetime.strptime(value, "%H:%M")
+                _value = value
+            except:
+                raise ValueError(f'invalid format for "{name}", must be "HH:MM"')
+        elif name in ['log_interval']:
+            try:
+                _value = int(value)
+            except:
+                raise ValueError(f'invalid format for "{name}", must be integer')
+        elif name in ['time_limits']:
+            try:
+                _value = json.loads(value)
+            except:
+                raise ValueError(f'invalid format for "{name}", must be json')
+            if not isinstance(_value, list):
+                raise ValueError(f'invalid format for "{name}", must be list')
+            for limit in _value:
+                if not isinstance(limit, dict):
+                    raise ValueError(f'invalid format for "{name}", must be list of dicts')
+                if 'start_time' not in limit or 'end_time' not in limit:
+                    raise ValueError(f'invalid format for "{name}", must be list of dicts with "start_time" and "end_time"')
+                try:
+                    datetime.strptime(limit['start_time'], "%H:%M")
+                    datetime.strptime(limit['end_time'], "%H:%M")
+                except:
+                    raise ValueError(f'invalid format for "{name}", must be list of dicts with "start_time" and "end_time" in "HH:MM" format')
+            for limit in _value:
+                if limit['start_time'] > limit['end_time']:
+                    raise ValueError(f'invalid format for "{name}", must be list of dicts with "start_time" <= "end_time"')
+            _value = ','.join([f'{limit["start_time"]}-{limit["end_time"]}' for limit in value])
+        elif name == 'password':
+                try:
+                    _value = json.loads(value)
+                except:
+                    raise ValueError(f'invalid format for "{name}", must be json')
+                if not isinstance(_value, dict):
+                    raise ValueError(f'invalid format for "{name}", must be json')
+                try:
+                    old_password = _value['old_password']
+                    new_password = _value['new_password']
+                except KeyError:
+                    raise ValueError(f'invalid format for "{name}", must be object with "old_password" and "new_password"')
+                if not Options.check_password(old_password):
+                    raise ValueError('invalid old password')
+                _value = hashlib.sha256(new_password.encode("utf-8")).hexdigest()
+        else:
+            raise KeyError('invalid option name')
+        Options.update(where={'name = ?':name}, data={'value':_value})
+
 
 class Logs(BaseModel):
     @staticmethod
@@ -227,8 +330,7 @@ class Logs(BaseModel):
 
         query, params = Logs.select(
             fields=['COUNT(id) as count'],
-            where=where,
-            order_by='id DESC'
+            where=where
         )
 
         counter = int(Logs.fetchone(query, params).count)
@@ -238,6 +340,7 @@ class Logs(BaseModel):
         query, params = Logs.select(
             limit=limit,
             where=where,
+            order_by='id DESC',
             offset=(page-1)*limit
         )
         _logs = Logs.fetchall(query, params)

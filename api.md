@@ -5,7 +5,8 @@
 *Response* JSON  
 - **name** string  
 - **ip** string  
-- **status** enum (working, have-errors, stopped)  
+- **status** enum (ok, have-error)
+- **mode** enum (auto, allow, deny) 
 
 ## get summary
 **GET** /api/summary?date={date}  
@@ -89,21 +90,13 @@
 **POST** /api/keywords
 *params*
 - **keyword** string
+- **action** enum (add)
 
 ## delete keyword
-**DELETE** /api/keywords
+**POST** /api/keywords
 *params*
-- **id** int
-
-*params*
-- **time_intervals** *optional* list
-  - **start_time** time HH:MM
-  - **end_time** time HH:MM
-- **time_limit** *optional* time HH:MM
-- **log_interval** *optional* int seconds
-- **starting_point** *optional* time HH:MM
-- **login** *optional* string
-- **password** *optional* string
+- **keyword** string
+- **action** enum (delete)
 
 ## update process
 **POST** /api/processes
@@ -111,3 +104,13 @@
 *params*
 - **id** int
 - **type** enum (unknown, game, application) 
+
+## update options
+**POST** /api/options
+
+*params*
+- **name** string
+- **value** mixes (time HH:MM, int seconds, string, list)
+  - if list, then it must be list of objects with keys:
+    - **start_time** time HH:MM
+    - **end_time** time HH:MM
