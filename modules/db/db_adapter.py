@@ -150,7 +150,6 @@ class DbAdapter:
         self.thread = Thread(target=self.db_worker, daemon=True)
         self.thread.start()
 
-
     def fetchone(self, query, params=()):
         task = DbTask(query, 'fetchone', params)
         self.task_queue.put(task)
