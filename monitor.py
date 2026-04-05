@@ -17,6 +17,7 @@ class Monitor:
         self.working_apps = None
         self.status = 'ok'
         self.mode = None
+        self.log_time = datetime.now()
 
     def start(self):
         self.monitor_thread = Thread(target=self.main_loop, daemon=True)
@@ -26,6 +27,7 @@ class Monitor:
         while True:
             try:
                 start_time = time()
+                self.log_time = datetime.now()
                 if self._refresh:
                     self.read_configs()
                 self.working_apps = self._get_working_apps()
@@ -51,7 +53,7 @@ class Monitor:
         self.configs = {
             'log_interval': Options.get_log_interval(), 'starting_point': Options.get_starting_point_h_m(),
             'usage_limit': Options.get_usage_limit_minutes(), 'time_limits': Options.get_time_limits(),
-            'games_hashes': Process.get_game_hash_ids(), 'all_apps_hashes': Process.get_registered_apps_hash_ids(), 'keywords': Keywords.get_all_list(),
+            'games_hashes': Process.get_game_hash_ids(), 'logging_hashes': Process.get_for_logging_hash_ids(), 'all_apps_hashes': Process.get_registered_apps_hash_ids(), 'keywords': Keywords.get_all_list(),
         }
         self.mode = Options.get('mode')
         self._refresh = False
@@ -70,6 +72,7 @@ class Monitor:
         return False
 
     def _write_log(self):
+        process_ids_logs = []
         for pid, app in self.working_apps.items():
             text = app["title"] + app["path"]
             text_hash = hash(text.encode("utf-8"))
@@ -80,13 +83,17 @@ class Monitor:
                         is_game = True
                         break
                 Process.add_process(app['title'], app['path'], is_game)
-                if is_game:
-                    self.configs['games_hashes'] = Process.get_game_hash_ids()
+                self.configs['games_hashes'] = Process.get_game_hash_ids()
+                self.configs['logging_hashes'] = Process.get_for_logging_hash_ids()
                 self.configs['all_apps_hashes'] = Process.get_registered_apps_hash_ids()
             try:
-                ProcessLog.add_log(self.configs['all_apps_hashes'][text_hash], datetime.now())
+                if text_hash in self.configs['logging_hashes'].keys():
+                    if self.configs['all_apps_hashes'][text_hash] not in process_ids_logs:
+                        process_ids_logs.append(self.configs['all_apps_hashes'][text_hash])
             except KeyError:
                 pass
+        for p_id in process_ids_logs:
+            ProcessLog.add_log(p_id, self.log_time)
 
     def _kill_games(self):
         for text_hash, pid in self.running_processes.items():

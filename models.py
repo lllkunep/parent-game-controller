@@ -88,10 +88,23 @@ class Process(BaseModel):
         return ids
 
     @staticmethod
-    def get_registered_apps_hash_ids():
+    def get_for_logging_hash_ids():
         query, params = Process.select(
             fields=['id', 'title', 'path'],
-            where={'type': ['unknown', 'game']}
+            where={'type': ['game', 'unknown']},
+        )
+        _processes = Process.fetchall(query, params)
+        ids = {}
+        for process in _processes:
+            text = process.title + process.path
+            text_hash = hash(text.encode("utf-8"))
+            ids[text_hash] = process.id
+        return ids
+
+    @staticmethod
+    def get_registered_apps_hash_ids():
+        query, params = Process.select(
+            fields=['id', 'title', 'path']
         )
         _processes = Process.fetchall(query, params)
         ids = {}

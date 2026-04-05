@@ -52,7 +52,7 @@ class Server:
                 print(e)
                 return Response(json.dumps({'error': True, 'message': 'Server error'}), content_type='application/json', status=500)
 
-        self.app.run(host="127.0.0.1", port=5000, debug=False, use_reloader=False)
+        self.app.run(host="0.0.0.0", port=5000, debug=False, use_reloader=False)
 
     def run_discovery(self, port=9999):
         sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
