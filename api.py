@@ -11,6 +11,17 @@ class Api:
         self.request = request
         return action()
 
+    def check_user(self):
+        if self.request.method == 'POST':
+            username = self.request.form.get('username')
+            password = self.request.form.get('password')
+            if username and password:
+                Options.create_user(username, password)
+                return {'status': 'success'}
+            return {'status': 'error', 'message': 'Invalid username or password'}
+        is_exists = Options.has_user()
+        return {'status': 'ok', 'exists': is_exists}
+
     def clear_errors(self):
         self.monitor.status = 'ok'
         return {'status': 'success'}
@@ -43,6 +54,7 @@ class Api:
                 return {'status': 'error', 'message': 'Invalid process id'}
             try:
                 process.set_type(process_type)
+                self.monitor.refresh()
             except ValueError as e:
                 return {'status': 'error', 'message': str(e)}
             return {'status': 'success'}
@@ -67,6 +79,7 @@ class Api:
                 name = self.request.form.get('name')
                 value = self.request.form.get('value')
                 Options.update_option(name, value)
+                self.monitor.refresh()
             except (KeyError, ValueError) as e:
                 return {'status': 'error', 'message': str(e)}
             return {'status': 'success', 'message': 'Options updated'}
@@ -87,8 +100,10 @@ class Api:
             try:
                 if action == 'add':
                     Keywords.add_keyword(keyword)
+                    self.monitor.refresh()
                 elif action == 'delete':
                     Keywords.delete_keyword(keyword)
+                    self.monitor.refresh()
                 else:
                     return {'status': 'error', 'message': 'Invalid action'}
             except ValueError as e:

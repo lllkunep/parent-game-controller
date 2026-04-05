@@ -76,7 +76,7 @@ class Process(BaseModel):
     @staticmethod
     def get_game_hash_ids():
         query, params = Process.select(
-            fields=['title', 'path'],
+            fields=['id', 'title', 'path'],
             where={'type = ?':'game'}
         )
         _processes = Process.fetchall(query, params)
@@ -90,7 +90,7 @@ class Process(BaseModel):
     @staticmethod
     def get_registered_apps_hash_ids():
         query, params = Process.select(
-            fields=['title', 'path'],
+            fields=['id', 'title', 'path'],
             where={'type': ['unknown', 'game']}
         )
         _processes = Process.fetchall(query, params)
@@ -251,6 +251,21 @@ class Keywords(BaseModel):
 
 class Options(BaseModel):
     allowed_modes = ['auto', 'allow', 'deny']
+
+    @staticmethod
+    def has_user():
+        query, params = Options.select(
+            fields=['COUNT(id) as count'],
+            where={'name': ['username', 'password']}
+        )
+        return int(Options.fetchone(query, params).count) == 2
+
+    @staticmethod
+    def create_user(username, password):
+        if Options.has_user():
+            raise ValueError('user already exists')
+        Options.insert({'name':'username', 'value':username})
+        Options.insert({'name':'password', 'value':hashlib.sha256(password.encode("utf-8")).hexdigest()})
 
     @staticmethod
     def get(name):

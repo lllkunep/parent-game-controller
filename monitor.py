@@ -16,6 +16,7 @@ class Monitor:
         self.monitor_thread = None
         self.working_apps = None
         self.status = 'ok'
+        self.mode = None
 
     def start(self):
         self.monitor_thread = Thread(target=self.main_loop, daemon=True)
@@ -28,7 +29,10 @@ class Monitor:
                 if self._refresh:
                     self.read_configs()
                 self.working_apps = self._get_working_apps()
-                if self._checking_limits():
+                if self.mode == 'auto':
+                    if self._checking_limits():
+                        self._kill_games()
+                elif self.mode == 'deny':
                     self._kill_games()
                 self._write_log()
                 end_time = time()
@@ -49,6 +53,7 @@ class Monitor:
             'usage_limit': Options.get_usage_limit_minutes(), 'time_limits': Options.get_time_limits(),
             'games_hashes': Process.get_game_hash_ids(), 'all_apps_hashes': Process.get_registered_apps_hash_ids(), 'keywords': Keywords.get_all_list(),
         }
+        self.mode = Options.get('mode')
         self._refresh = False
 
     def _checking_limits(self):

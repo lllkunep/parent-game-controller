@@ -39,8 +39,6 @@ class DbAdapter:
         'time_limits': '00:00-07:00,22:00-23:59',
         'log_interval': '60',
         'starting_point': '07:00',
-        'username': 'admin',
-        'password': 'REMOVED',
         'mode': 'auto'
     }
 
