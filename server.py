@@ -1,21 +1,19 @@
 from flask import Flask, request, Response
-from multiprocessing import Process
-from time import sleep
+from threading import Thread
 from api import Api
 from flask_httpauth import HTTPBasicAuth
 import json
 
 from models import Options
-from modules.db.db_adapter import DbAdapter
 
 
 class Server:
-    def __init__(self):
+    def __init__(self, monitor=None):
         self.is_running = False
         self.app = None
         self.auth = None
         self.server_process = None
-        self.status = 'ok'
+        self.monitor = monitor
 
     def run_flask(self):
         self.app = Flask(__name__)
@@ -34,11 +32,7 @@ class Server:
         @self.app.route('/api/<action>', methods=['GET', 'POST'])
         @self.auth.login_required
         def api(action):
-            if action == 'clear-errors':
-                self.status = 'ok'
-                return Response(json.dumps({'message':'ok'}), content_type='application/json')
-            self.api = Api()
-            self.api.status = self.status
+            self.api = Api(self.monitor)
             try:
                 return Response(json.dumps(self.api.start_routes(action, request)), content_type='application/json')
             except Exception as e:
@@ -50,27 +44,5 @@ class Server:
 
     def run_server(self):
         if self.server_process is None:
-            self.server_process = Process(target=self.run_flask)
+            self.server_process = Thread(target=self.run_flask, daemon=True)
             self.server_process.start()
-
-    def stop_server(self):
-        if self.server_process is not None:
-            self.server_process.terminate()
-            self.server_process.join()
-            self.server_process = None
-            self.app = None
-            self.auth = None
-
-
-if __name__ == '__main__':
-    try:
-        DbAdapter.init('gpucontrol.db')
-        server = Server()
-        server.run_flask()
-        while True:
-            sleep(10)
-            pass
-    except KeyboardInterrupt:
-        adapter = DbAdapter.get_adapter()
-        adapter.close()
-        exit(0)

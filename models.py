@@ -73,6 +73,43 @@ class Process(BaseModel):
 
         return counter_array
 
+    @staticmethod
+    def get_game_hash_ids():
+        query, params = Process.select(
+            fields=['title', 'path'],
+            where={'type = ?':'game'}
+        )
+        _processes = Process.fetchall(query, params)
+        ids = {}
+        for process in _processes:
+            text = process.title + process.path
+            text_hash = hash(text.encode("utf-8"))
+            ids[text_hash] = process.id
+        return ids
+
+    @staticmethod
+    def get_registered_apps_hash_ids():
+        query, params = Process.select(
+            fields=['title', 'path'],
+            where={'type': ['unknown', 'game']}
+        )
+        _processes = Process.fetchall(query, params)
+        ids = {}
+        for process in _processes:
+            text = process.title + process.path
+            text_hash = hash(text.encode("utf-8"))
+            ids[text_hash] = process.id
+        return ids
+
+    @staticmethod
+    def add_process(title, path, is_game):
+        game = Process.from_dict({
+            'title': title,
+            'path': path,
+            'type': 'game' if is_game else 'unknown'
+        })
+        game.save()
+
 
 class ProcessLog(BaseModel):
     @staticmethod
@@ -86,7 +123,13 @@ class ProcessLog(BaseModel):
         if counter is None:
             return 0
         else:
-            return counter.count
+            return int(counter.count)
+
+    @staticmethod
+    def get_game_work_time(start_time):
+        log_count = ProcessLog.get_count_by_time(start_time)
+        log_interval = Options.get_log_interval()
+        return int(log_count * log_interval / 60)
 
     @staticmethod
     def get_statistics(process_type='all', start_time=None, end_time=None):
@@ -151,13 +194,15 @@ class ProcessLog(BaseModel):
         for process_id, current_process in current_processes.items():
             processes.append([process_id, current_process])
 
+        if len(processes) == 0:
+            return []
         query, params = Process.select(where={'id': process_ids})
         process_list = Process.fetchall_by_pk(query, params)
 
         by_apps = {}
         for app in processes:
             try:
-                by_apps[app[0]]['times'].append(app[1])
+                by_apps[app[0]]['working_time'].append(app[1])
             except KeyError:
                 by_apps[app[0]] = {
                     'title': process_list[app[0]].title,
@@ -169,6 +214,10 @@ class ProcessLog(BaseModel):
                 }
 
         return list(by_apps.values())
+
+    @staticmethod
+    def add_log(process_id, timestamp):
+        ProcessLog.insert({'process_id':process_id, 'timestamp':timestamp})
 
 class Keywords(BaseModel):
     @staticmethod
@@ -238,7 +287,7 @@ class Options(BaseModel):
         _options = Options.fetchall()
         options = {}
         for option in _options:
-            if option.name in ['name', 'password']:
+            if option.name in ['username', 'password']:
                 continue
             if option.name == 'time_limits':
                 options[option.name] = []
@@ -263,7 +312,7 @@ class Options(BaseModel):
         _value = None
         if name == 'username':
             _value = value
-        if name == 'mode':
+        elif name == 'mode':
             if value not in Options.allowed_modes:
                 raise ValueError('invalid mode')
             _value = value
@@ -298,7 +347,7 @@ class Options(BaseModel):
             for limit in _value:
                 if limit['start_time'] > limit['end_time']:
                     raise ValueError(f'invalid format for "{name}", must be list of dicts with "start_time" <= "end_time"')
-            _value = ','.join([f'{limit["start_time"]}-{limit["end_time"]}' for limit in value])
+            _value = ','.join([f'{limit["start_time"]}-{limit["end_time"]}' for limit in _value])
         elif name == 'password':
                 try:
                     _value = json.loads(value)
@@ -317,6 +366,24 @@ class Options(BaseModel):
         else:
             raise KeyError('invalid option name')
         Options.update(where={'name = ?':name}, data={'value':_value})
+
+    @staticmethod
+    def get_starting_point_h_m():
+        starting_point = Options.get('starting_point')
+        return datetime.strptime(starting_point, "%H:%M").time()
+
+    @staticmethod
+    def get_time_limits():
+        time_limits = Options.get('time_limits').split(',')
+        _time_limits = []
+        for limit in time_limits:
+            start_end = limit.split('-')
+
+            _time_limits.append({
+                'start': datetime.strptime(start_end[0], "%H:%M").time(),
+                'end': datetime.strptime(start_end[1], "%H:%M").time(),
+            })
+        return _time_limits
 
 
 class Logs(BaseModel):
@@ -353,3 +420,7 @@ class Logs(BaseModel):
             'total_pages': total_pages,
             'list': logs,
         }
+
+    @staticmethod
+    def save_log(context, message):
+        Logs.insert({'context':context, 'message':message, 'time':datetime.now()})

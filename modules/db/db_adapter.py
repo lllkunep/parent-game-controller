@@ -147,7 +147,7 @@ class DbAdapter:
                 task.set_error(e)
 
     def start(self):
-        self.thread = Thread(target=self.db_worker)
+        self.thread = Thread(target=self.db_worker, daemon=True)
         self.thread.start()
 
 

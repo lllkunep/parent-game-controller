@@ -5,6 +5,6 @@ def main():
 	pass
 
 if __name__ == '__main__':
-	adapter = DbAdapter.init('gpucontrol.db')
+	adapter = DbAdapter.init('db/gpucontrol.db')
 	main()
 	adapter.close()
